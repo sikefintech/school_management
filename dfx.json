@@ -1,0 +1,30 @@
+{
+  "canisters": {
+    "school_management_backend": {
+      "candid": "src/school_management_backend/school_management_backend.did",
+      "package": "school_management_backend",
+      "type": "rust"
+    },
+    "school_management_frontend": {
+      "dependencies": [
+        "school_management_backend"
+      ],
+      "frontend": {
+        "entrypoint": "src/school_management_frontend/src/index.html"
+      },
+      "source": [
+        "src/school_management_frontend/assets",
+        "dist/school_management_frontend/"
+      ],
+      "type": "assets"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
