@@ -1,3 +1,93 @@
+type Classroom = record {
+  id : nat64;
+  equipment : vec text;
+  name : text;
+  current_course_id : nat64;
+  capacity : nat32;
+  location : text;
+};
+type ClassroomPayload = record {
+  name : text;
+  current_course_id : nat64;
+  capacity : nat32;
+  location : text;
+};
+type Course = record {
+  id : nat64;
+  course_materials : vec text;
+  teacher_id : nat64;
+  student_ids : vec nat64;
+  name : text;
+  description : text;
+  schedule : text;
+  syllabus : text;
+};
+type CoursePayload = record {
+  teacher_id : nat64;
+  name : text;
+  description : text;
+};
+type Result = variant { Ok : Classroom; Err : text };
+type Result_1 = variant { Ok : Course; Err : text };
+type Result_2 = variant { Ok : Student; Err : text };
+type Result_3 = variant { Ok : Teacher; Err : text };
+type Result_4 = variant { Ok; Err : text };
+type Student = record {
+  id : nat64;
+  enrolled_courses : vec nat64;
+  name : text;
+  performance_records : vec nat64;
+  email : text;
+  attendance_records : vec nat64;
+  grade_level : nat8;
+  address : text;
+  date_of_birth : text;
+  guardian_details : text;
+};
+type StudentPayload = record {
+  name : text;
+  email : text;
+  grade_level : nat8;
+  address : text;
+  date_of_birth : text;
+  guardian_details : text;
+};
+type Teacher = record {
+  id : nat64;
+  employment_date : text;
+  name : text;
+  subject_area : text;
+  qualifications : text;
+  email : text;
+  address : text;
+  schedule : vec nat64;
+  assigned_courses : vec nat64;
+};
+type TeacherPayload = record {
+  employment_date : text;
+  name : text;
+  subject_area : text;
+  qualifications : text;
+  email : text;
+  address : text;
+  schedule : vec nat64;
+  assigned_courses : vec nat64;
+};
 service : {
-    "greet": (text) -> (text) query;
+  add_classroom : (ClassroomPayload) -> (Result);
+  add_course : (CoursePayload) -> (Result_1);
+  add_student : (StudentPayload) -> (Result_2);
+  add_teacher : (TeacherPayload) -> (Result_3);
+  delete_classroom : (nat64) -> (Result_4);
+  delete_course : (nat64) -> (Result_4);
+  delete_student : (nat64) -> (Result_4);
+  delete_teacher : (nat64) -> (Result_4);
+  get_classroom : (nat64) -> (Result) query;
+  get_course : (nat64) -> (Result_1) query;
+  get_student : (nat64) -> (Result_2) query;
+  get_teacher : (nat64) -> (Result_3) query;
+  update_classroom : (nat64, ClassroomPayload) -> (Result);
+  update_course : (nat64, CoursePayload) -> (Result_1);
+  update_student : (nat64, StudentPayload) -> (Result_2);
+  update_teacher : (nat64, TeacherPayload) -> (Result_3);
 }
