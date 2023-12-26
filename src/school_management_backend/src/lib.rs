@@ -9,6 +9,7 @@ use std::{borrow::Cow, cell::RefCell};
 type Memory = VirtualMemory<DefaultMemoryImpl>;
 type IdCell = Cell<u64, Memory>;
 
+/// Represents information about a student.
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
 struct Student {
     id: u64,
@@ -24,7 +25,6 @@ struct Student {
     // Additional student-specific fields
 }
 
-
 impl Storable for Student {
     fn to_bytes(&self) -> Cow<[u8]> {
         Cow::Owned(Encode!(self).unwrap())
@@ -35,13 +35,12 @@ impl Storable for Student {
     }
 }
 
-
 impl BoundedStorable for Student {
     const MAX_SIZE: u32 = 2048; // Adjust based on the expected size of the struct
     const IS_FIXED_SIZE: bool = false;
 }
 
-
+/// Represents information about a teacher.
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
 struct Teacher {
     id: u64,
@@ -55,7 +54,6 @@ struct Teacher {
     schedule: Vec<u64>, // IDs of scheduled classes or duties
     // Additional teacher-specific fields
 }
-
 
 impl Storable for Teacher {
     fn to_bytes(&self) -> Cow<[u8]> {
@@ -72,7 +70,7 @@ impl BoundedStorable for Teacher {
     const IS_FIXED_SIZE: bool = false;
 }
 
-
+/// Represents information about a course.
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
 struct Course {
     id: u64,
@@ -85,7 +83,6 @@ struct Course {
     course_materials: Vec<String>, // URLs or IDs of course materials
     // Additional course-specific fields
 }
-
 
 impl Storable for Course {
     fn to_bytes(&self) -> Cow<[u8]> {
@@ -102,6 +99,7 @@ impl BoundedStorable for Course {
     const IS_FIXED_SIZE: bool = false;
 }
 
+/// Represents information about a classroom.
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
 struct Classroom {
     id: u64,
@@ -127,6 +125,7 @@ impl BoundedStorable for Classroom {
     const IS_FIXED_SIZE: bool = false;
 }
 
+/// Represents payload for adding a student.
 #[derive(candid::CandidType, Serialize, Deserialize, Default)]
 struct StudentPayload {
     name: String,
@@ -138,6 +137,20 @@ struct StudentPayload {
     // Additional student-specific payload fields
 }
 
+impl Default for StudentPayload {
+    fn default() -> Self {
+        StudentPayload {
+            name: String::default(),
+            grade_level: 0,
+            email: String::default(),
+            date_of_birth: String::default(),
+            address: String::default(),
+            guardian_details: String::default(),
+        }
+    }
+}
+
+/// Represents payload for adding a teacher.
 #[derive(candid::CandidType, Serialize, Deserialize, Default)]
 struct TeacherPayload {
     name: String,
@@ -151,6 +164,22 @@ struct TeacherPayload {
     // Additional teacher-specific payload fields
 }
 
+impl Default for TeacherPayload {
+    fn default() -> Self {
+        TeacherPayload {
+            name: String::default(),
+            subject_area: String::default(),
+            email: String::default(),
+            qualifications: String::default(),
+            employment_date: String::default(),
+            address: String::default(),
+            assigned_courses: Vec::default(),
+            schedule: Vec::default(),
+        }
+    }
+}
+
+/// Represents payload for adding a course.
 #[derive(candid::CandidType, Serialize, Deserialize, Default)]
 struct CoursePayload {
     name: String,
@@ -159,6 +188,17 @@ struct CoursePayload {
     // Additional course-specific payload fields
 }
 
+impl Default for CoursePayload {
+    fn default() -> Self {
+        CoursePayload {
+            name: String::default(),
+            description: String::default(),
+            teacher_id: 0,
+        }
+    }
+}
+
+/// Represents payload for adding a classroom.
 #[derive(candid::CandidType, Serialize, Deserialize, Default)]
 struct ClassroomPayload {
     name: String,
@@ -166,6 +206,17 @@ struct ClassroomPayload {
     capacity: u32,
     current_course_id: u64,
     // Additional classroom-specific payload fields
+}
+
+impl Default for ClassroomPayload {
+    fn default() -> Self {
+        ClassroomPayload {
+            name: String::default(),
+            location: String::default(),
+            capacity: 0,
+            current_course_id: 0,
+        }
+    }
 }
 
 thread_local! {
@@ -199,8 +250,14 @@ thread_local! {
     ));
 }
 
+/// Adds a new student with the provided payload.
 #[ic_cdk::update]
 fn add_student(payload: StudentPayload) -> Result<Student, String> {
+    // Validation logic (basic example, add more as needed)
+    if payload.name.is_empty() || payload.email.is_empty() {
+        return Err("Name and email are required fields".to_string());
+    }
+
     let id = ID_COUNTER.with(|counter| {
         let current_value = *counter.borrow().get();
         let _ = counter.borrow_mut().set(current_value + 1);
@@ -226,17 +283,19 @@ fn add_student(payload: StudentPayload) -> Result<Student, String> {
 
     Ok(student)
 }
+
+/// Retrieves information about a student based on the provided ID.
 #[ic_cdk::query]
 fn get_student(id: u64) -> Result<Student, String> {
     STUDENT_STORAGE.with(|storage| {
         match storage.borrow().get(&id) {
             Some(student) => Ok(student.clone()),
-            None => Err("Student not found".to_string()),
+            None => Err(format!("Student with ID {} not found", id)),
         }
     })
 }
 
-
+/// Updates information about a student based on the provided ID and payload.
 #[ic_cdk::update]
 fn update_student(id: u64, payload: StudentPayload) -> Result<Student, String> {
     STUDENT_STORAGE.with(|storage| {
@@ -247,30 +306,42 @@ fn update_student(id: u64, payload: StudentPayload) -> Result<Student, String> {
 
             // Update the fields
             updated_student.name = payload.name;
-            // Update other fields similarly...
+            updated_student.grade_level = payload.grade_level;
+            updated_student.email = payload.email;
+            updated_student.date_of_birth = payload.date_of_birth;
+            updated_student.address = payload.address;
+            updated_student.guardian_details = payload.guardian_details;
 
             // Re-insert the updated student back into the storage
             storage.insert(id, updated_student.clone());
 
             Ok(updated_student)
         } else {
-            Err("Student not found".to_string())
+            Err(format!("Student with ID {} not found", id))
         }
     })
 }
 
+/// Deletes a student based on the provided ID.
 #[ic_cdk::update]
 fn delete_student(id: u64) -> Result<(), String> {
     STUDENT_STORAGE.with(|storage| {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
         } else {
-            Err("Student not found".to_string())
+            Err(format!("Student with ID {} not found", id))
         }
     })
 }
+
+/// Adds a new teacher with the provided payload.
 #[ic_cdk::update]
 fn add_teacher(payload: TeacherPayload) -> Result<Teacher, String> {
+    // Validation logic (basic example, add more as needed)
+    if payload.name.is_empty() || payload.email.is_empty() {
+        return Err("Name and email are required fields".to_string());
+    }
+
     let id = ID_COUNTER.with(|counter| {
         let current_value = *counter.borrow().get();
         let _ = counter.borrow_mut().set(current_value + 1);
@@ -295,22 +366,28 @@ fn add_teacher(payload: TeacherPayload) -> Result<Teacher, String> {
 
     Ok(teacher)
 }
+
+/// Retrieves information about a teacher based on the provided ID.
 #[ic_cdk::query]
 fn get_teacher(id: u64) -> Result<Teacher, String> {
     TEACHER_STORAGE.with(|storage| {
         match storage.borrow().get(&id) {
             Some(teacher) => Ok(teacher.clone()),
-            None => Err("Teacher not found".to_string()),
+            None => Err(format!("Teacher with ID {} not found", id)),
         }
     })
 }
+
+/// Updates information about a teacher based on the provided ID and payload.
 #[ic_cdk::update]
 fn update_teacher(id: u64, payload: TeacherPayload) -> Result<Teacher, String> {
     TEACHER_STORAGE.with(|storage| {
         let mut storage = storage.borrow_mut();
         if let Some(existing_teacher) = storage.get(&id) {
+            // Clone the existing teacher to make a mutable copy
             let mut updated_teacher = existing_teacher.clone();
 
+            // Update the fields
             updated_teacher.name = payload.name;
             updated_teacher.subject_area = payload.subject_area;
             updated_teacher.assigned_courses = payload.assigned_courses;
@@ -320,26 +397,36 @@ fn update_teacher(id: u64, payload: TeacherPayload) -> Result<Teacher, String> {
             updated_teacher.address = payload.address;
             updated_teacher.schedule = payload.schedule;
 
+            // Re-insert the updated teacher back into the storage
             storage.insert(id, updated_teacher.clone());
 
             Ok(updated_teacher)
         } else {
-            Err("Teacher not found".to_string())
+            Err(format!("Teacher with ID {} not found", id))
         }
     })
 }
+
+/// Deletes a teacher based on the provided ID.
 #[ic_cdk::update]
 fn delete_teacher(id: u64) -> Result<(), String> {
     TEACHER_STORAGE.with(|storage| {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
         } else {
-            Err("Teacher not found".to_string())
+            Err(format!("Teacher with ID {} not found", id))
         }
     })
 }
+
+/// Adds a new course with the provided payload.
 #[ic_cdk::update]
 fn add_course(payload: CoursePayload) -> Result<Course, String> {
+    // Validation logic (basic example, add more as needed)
+    if payload.name.is_empty() || payload.description.is_empty() {
+        return Err("Name and description are required fields".to_string());
+    }
+
     let id = ID_COUNTER.with(|counter| {
         let current_value = *counter.borrow().get();
         let _ = counter.borrow_mut().set(current_value + 1);
@@ -363,44 +450,60 @@ fn add_course(payload: CoursePayload) -> Result<Course, String> {
 
     Ok(course)
 }
+
+/// Retrieves information about a course based on the provided ID.
 #[ic_cdk::query]
 fn get_course(id: u64) -> Result<Course, String> {
     COURSE_STORAGE.with(|storage| {
         match storage.borrow().get(&id) {
             Some(course) => Ok(course.clone()),
-            None => Err("Course not found".to_string()),
+            None => Err(format!("Course with ID {} not found", id)),
         }
     })
 }
+
+/// Updates information about a course based on the provided ID and payload.
 #[ic_cdk::update]
 fn update_course(id: u64, payload: CoursePayload) -> Result<Course, String> {
     COURSE_STORAGE.with(|storage| {
         let mut storage = storage.borrow_mut();
         if let Some(existing_course) = storage.get(&id) {
             let mut updated_course = existing_course.clone();
+
             updated_course.name = payload.name;
             updated_course.description = payload.description;
             updated_course.teacher_id = payload.teacher_id;
+
             // Note: Student IDs, schedule, syllabus, and materials are not updated here
             storage.insert(id, updated_course.clone());
+
             Ok(updated_course)
         } else {
-            Err("Course not found".to_string())
+            Err(format!("Course with ID {} not found", id))
         }
     })
 }
+
+/// Deletes a course based on the provided ID.
 #[ic_cdk::update]
 fn delete_course(id: u64) -> Result<(), String> {
     COURSE_STORAGE.with(|storage| {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
         } else {
-            Err("Course not found".to_string())
+            Err(format!("Course with ID {} not found", id))
         }
     })
 }
+
+/// Adds a new classroom with the provided payload.
 #[ic_cdk::update]
 fn add_classroom(payload: ClassroomPayload) -> Result<Classroom, String> {
+    // Validation logic (basic example, add more as needed)
+    if payload.name.is_empty() || payload.location.is_empty() {
+        return Err("Name and location are required fields".to_string());
+    }
+
     let id = ID_COUNTER.with(|counter| {
         let current_value = *counter.borrow().get();
         let _ = counter.borrow_mut().set(current_value + 1);
@@ -422,44 +525,52 @@ fn add_classroom(payload: ClassroomPayload) -> Result<Classroom, String> {
 
     Ok(classroom)
 }
+
+/// Retrieves information about a classroom based on the provided ID.
 #[ic_cdk::query]
 fn get_classroom(id: u64) -> Result<Classroom, String> {
     CLASSROOM_STORAGE.with(|storage| {
         match storage.borrow().get(&id) {
             Some(classroom) => Ok(classroom.clone()),
-            None => Err("Classroom not found".to_string()),
+            None => Err(format!("Classroom with ID {} not found", id)),
         }
     })
 }
+
+/// Updates information about a classroom based on the provided ID and payload.
 #[ic_cdk::update]
 fn update_classroom(id: u64, payload: ClassroomPayload) -> Result<Classroom, String> {
     CLASSROOM_STORAGE.with(|storage| {
         let mut storage = storage.borrow_mut();
         if let Some(existing_classroom) = storage.get(&id) {
             let mut updated_classroom = existing_classroom.clone();
+
             updated_classroom.name = payload.name;
             updated_classroom.location = payload.location;
             updated_classroom.capacity = payload.capacity;
             updated_classroom.current_course_id = payload.current_course_id;
+
             // Equipment is not updated here
             storage.insert(id, updated_classroom.clone());
+
             Ok(updated_classroom)
         } else {
-            Err("Classroom not found".to_string())
+            Err(format!("Classroom with ID {} not found", id))
         }
     })
 }
+
+/// Deletes a classroom based on the provided ID.
 #[ic_cdk::update]
 fn delete_classroom(id: u64) -> Result<(), String> {
     CLASSROOM_STORAGE.with(|storage| {
         if storage.borrow_mut().remove(&id).is_some() {
             Ok(())
         } else {
-            Err("Classroom not found".to_string())
+            Err(format!("Classroom with ID {} not found", id))
         }
     })
 }
-
 
 // need this to generate candid
 ic_cdk::export_candid!();
