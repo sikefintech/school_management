@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate serde;
 use candid::{Decode, Encode};
-use ic_cdk::api::time;
+// use ic_cdk::api::time;
 use ic_stable_structures::memory_manager::{MemoryId, MemoryManager, VirtualMemory};
 use ic_stable_structures::{BoundedStorable, Cell, DefaultMemoryImpl, StableBTreeMap, Storable};
 use std::{borrow::Cow, cell::RefCell};
@@ -126,7 +126,7 @@ impl BoundedStorable for Classroom {
 }
 
 /// Represents payload for adding a student.
-#[derive(candid::CandidType, Serialize, Deserialize, Default)]
+#[derive(candid::CandidType, Serialize, Deserialize)]
 struct StudentPayload {
     name: String,
     grade_level: u8,
@@ -151,7 +151,7 @@ impl Default for StudentPayload {
 }
 
 /// Represents payload for adding a teacher.
-#[derive(candid::CandidType, Serialize, Deserialize, Default)]
+#[derive(candid::CandidType, Serialize, Deserialize)]
 struct TeacherPayload {
     name: String,
     subject_area: String,
@@ -180,7 +180,7 @@ impl Default for TeacherPayload {
 }
 
 /// Represents payload for adding a course.
-#[derive(candid::CandidType, Serialize, Deserialize, Default)]
+#[derive(candid::CandidType, Serialize, Deserialize)]
 struct CoursePayload {
     name: String,
     description: String,
@@ -199,7 +199,7 @@ impl Default for CoursePayload {
 }
 
 /// Represents payload for adding a classroom.
-#[derive(candid::CandidType, Serialize, Deserialize, Default)]
+#[derive(candid::CandidType, Serialize, Deserialize)]
 struct ClassroomPayload {
     name: String,
     location: String,
@@ -571,6 +571,75 @@ fn delete_classroom(id: u64) -> Result<(), String> {
         }
     })
 }
+/// Enrolls a student in a course.
+#[ic_cdk::update]
+fn enroll_student_in_course(student_id: u64, course_id: u64) -> Result<(), String> {
+    // Check if the student and course exist
+    let student = get_student(student_id)?;
+    let _course = get_course(course_id)?;
+
+    // Check if the student is already enrolled in the course
+    if student.enrolled_courses.contains(&course_id) {
+        return Err("Student is already enrolled in the course".to_string());
+    }
+
+    // Enroll the student in the course
+    STUDENT_STORAGE.with(|storage| {
+        let mut storage = storage.borrow_mut();
+        let mut updated_student = student.clone();
+        updated_student.enrolled_courses.push(course_id);
+        storage.insert(student_id, updated_student);
+    });
+
+    Ok(())
+}
+/// Assigns a teacher to a course.
+#[ic_cdk::update]
+fn assign_teacher_to_course(teacher_id: u64, course_id: u64) -> Result<(), String> {
+    // Check if the teacher and course exist
+    let teacher = get_teacher(teacher_id)?;
+    let course = get_course(course_id)?;
+
+    // Check if the teacher is already assigned to the course
+    if course.teacher_id == teacher_id {
+        return Err("Teacher is already assigned to the course".to_string());
+    }
+
+    // Assign the teacher to the course
+    COURSE_STORAGE.with(|storage| {
+        let mut storage = storage.borrow_mut();
+        let mut updated_course = course.clone();
+        updated_course.teacher_id = teacher_id;
+        storage.insert(course_id, updated_course);
+    });
+
+    // Update the teacher's assigned courses
+    TEACHER_STORAGE.with(|storage| {
+        let mut storage = storage.borrow_mut();
+        let mut updated_teacher = teacher.clone();
+        updated_teacher.assigned_courses.push(course_id);
+        storage.insert(teacher_id, updated_teacher);
+    });
+
+    Ok(())
+}
+/// Updates the equipment in a classroom.
+#[ic_cdk::update]
+fn update_classroom_equipment(classroom_id: u64, equipment: Vec<String>) -> Result<(), String> {
+    // Check if the classroom exists
+    let classroom = get_classroom(classroom_id)?;
+
+    // Update the equipment in the classroom
+    CLASSROOM_STORAGE.with(|storage| {
+        let mut storage = storage.borrow_mut();
+        let mut updated_classroom = classroom.clone();
+        updated_classroom.equipment = equipment;
+        storage.insert(classroom_id, updated_classroom);
+    });
+
+    Ok(())
+}
+
 
 // need this to generate candid
 ic_cdk::export_candid!();
